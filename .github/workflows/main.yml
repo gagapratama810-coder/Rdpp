@@ -28,8 +28,8 @@ jobs:
 
       - name: Create RDP User with Strong Password
         run: |
-          $username = "bagus"  # <--- USERNAME DIGANTI DI SINI
-          $password = "Bagus@2025GH!" # <--- PASSWORD DIUBAH UNTUK KONSISTENSI
+          $username = "bagus"
+          $password = "ActionRDP!2025" # <--- PASSWORD BARU DI SINI
 
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
@@ -50,7 +50,7 @@ jobs:
           echo "RDP_USER=$username" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
 
-          Write-Host "User $username created successfully with password $password" # <--- OUTPUT DIPERBARUI
+          Write-Host "User $username created successfully with password $password"
 
       - name: Install Tailscale
         run: |
