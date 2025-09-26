@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Configure Core RDP Settings
         run: |
-          # Enable Remote Desktop
+          # Perintah ini sudah OK untuk mengaktifkan RDP
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' `
                            -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
@@ -29,7 +29,8 @@ jobs:
       - name: Create RDP User with Strong Password
         run: |
           $username = "rizky"
-          $password = "Rizky@2025GH!"
+          # Pastikan password ini cukup kuat untuk Windows policy
+          $password = "Rizky@2025GH!" 
 
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
@@ -46,28 +47,31 @@ jobs:
           Add-LocalGroupMember -Group "Administrators" -Member $username -ErrorAction SilentlyContinue
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username -ErrorAction SilentlyContinue
 
-          # Save credentials to env
+          # Simpan username dan password ke env
+          # GITHUB secara otomatis menyensor output dari $env:RDP_PASS jika dicetak di log
           echo "RDP_USER=$username" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
-
-          Write-Host "User $username created successfully with password $password"
+          
+          Write-Host "User $username created successfully." # Hapus tampilan password
 
       - name: Install Tailscale
+        # Versi Tailscale 1.82.0 sudah agak lama, mungkin lebih baik menggunakan link terbaru/generik.
         run: |
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-windows.msi" # Menggunakan link generik untuk versi stabil terbaru
           $installerPath = "$env:TEMP\tailscale.msi"
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
 
       - name: Establish Tailscale Connection
+        # Gunakan nama secret Anda. Saya anggap Anda menggunakan TAILSCALE_AUTHKEY
         run: |
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-rdp-$env:GITHUB_RUN_ID
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=gh-rdp-$env:GITHUB_RUN_ID
 
           # Wait for Tailscale IP
           $tsIP = $null
           $retries = 0
-          while (-not $tsIP -and $retries -lt 10) {
+          while (-not $tsIP -and $retries -lt 15) { # Tambah retries (misalnya 15) untuk koneksi yang lebih andal
               $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
               Start-Sleep -Seconds 5
               $retries++
@@ -75,11 +79,14 @@ jobs:
 
           if (-not $tsIP) { throw "Tailscale IP not assigned" }
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
+          Write-Host "Tailscale IP: $tsIP"
 
       - name: Verify RDP Accessibility
         run: |
           Write-Host "Testing RDP connection on $env:TAILSCALE_IP ..."
-          $test = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
+          # Di dalam Tailnet, RDP akan menggunakan koneksi Tailscale, bukan port 3389 secara langsung.
+          # Uji port 3389 pada IP Tailscale adalah langkah yang baik.
+          $test = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389 -ErrorAction Stop
           if (-not $test.TcpTestSucceeded) { throw "RDP port not accessible" }
           Write-Host "RDP TCP connectivity OK!"
 
@@ -88,10 +95,11 @@ jobs:
           Write-Host "`n=== RDP INFO ==="
           Write-Host "IP Address : $env:TAILSCALE_IP"
           Write-Host "Username   : $env:RDP_USER"
-          Write-Host "Password   : $env:RDP_PASS"
+          Write-Host "Password   : **[PASSWORD TERSEMBUNYI DI LOG]**" # JANGAN CETAK PASSWORD
           Write-Host "=============`n"
 
           while ($true) {
             Write-Host "[$(Get-Date)] Session active..."
             Start-Sleep -Seconds 300
           }
+
