@@ -66,7 +66,7 @@ jobs:
       - name: Establish Tailscale Connection
         # Gunakan nama secret Anda. Saya anggap Anda menggunakan TAILSCALE_AUTHKEY
         run: |
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=gh-rdp-$env:GITHUB_RUN_ID
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-rdp-$env:GITHUB_RUN_ID
 
           # Wait for Tailscale IP
           $tsIP = $null
